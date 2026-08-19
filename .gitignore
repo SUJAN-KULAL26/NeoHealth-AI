@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project data
+data/raw/
+data/processed/
+
+# Model artifacts
+models/*.pth
+models/*.pt
+models/*.onnx
+
+# Experiment artifacts
+experiments/runs/
