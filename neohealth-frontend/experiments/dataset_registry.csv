@@ -1,0 +1,2 @@
+dataset_name,source_url,condition,infant_specific,image_count,license,usable,limitations,notes
+NJN,https://zenodo.org/records/7825810,Jaundice + Normal,true,760,pending,yes,"Newborn images; 2-8 days old","200 jaundice + 560 normal; JPG"
