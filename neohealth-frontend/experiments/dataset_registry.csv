@@ -1,2 +1,3 @@
 dataset_name,source_url,condition,infant_specific,image_count,license,usable,limitations,notes
 NJN,https://zenodo.org/records/7825810,Jaundice + Normal,true,760,pending,yes,"Newborn images; 2-8 days old","200 jaundice + 560 normal; JPG"
+Atopic Dermatitis,https://www.kaggle.com/datasets/riyaelizashaju/skin-disease-classification-image-dataset,Atopic Dermatitis,true,102,pending,no,"General dermatology images; infant-specific population not established","81 train + 21 validation; JPG"
