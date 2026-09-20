@@ -31,3 +31,5 @@ models/*.onnx
 
 # Experiment artifacts
 experiments/runs/
+
+desktop.ini
