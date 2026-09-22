@@ -51,3 +51,8 @@ EXPERIMENTS_DIR: Path = BASE_DIR / "experiments" / "runs"
 TRAINING_DATA_DIR: Path = (
     BASE_DIR / "neohealth-frontend" / "data" / "raw" / "training"
 )
+
+# ==============================================================================
+# COMPUTER VISION INFRASTRUCTURE
+# ==============================================================================
+FACE_DETECTOR_MODEL_PATH: Path = MODELS_DIR / "blaze_face_short_range.tflite"

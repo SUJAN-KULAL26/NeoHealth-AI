@@ -18,7 +18,9 @@ from src.config import (
     RAW_DATA_DIR,
     SUPPORTED_IMAGE_EXTENSIONS,
     TRAINING_DATA_DIR,
+    FACE_DETECTOR_MODEL_PATH,
 )
+
 
 
 
@@ -70,6 +72,7 @@ class TestConfig(unittest.TestCase):
         self.assertIsInstance(MODELS_DIR, Path)
         self.assertIsInstance(EXPERIMENTS_DIR, Path)
         self.assertIsInstance(TRAINING_DATA_DIR, Path)
+        self.assertIsInstance(FACE_DETECTOR_MODEL_PATH, Path)
 
         self.assertEqual(DATA_DIR, BASE_DIR / "data")
         self.assertEqual(RAW_DATA_DIR, BASE_DIR / "data" / "raw")
@@ -80,6 +83,11 @@ class TestConfig(unittest.TestCase):
             TRAINING_DATA_DIR,
             BASE_DIR / "neohealth-frontend" / "data" / "raw" / "training",
         )
+        self.assertEqual(
+            FACE_DETECTOR_MODEL_PATH,
+            MODELS_DIR / "blaze_face_short_range.tflite",
+        )
+
 
 
 
