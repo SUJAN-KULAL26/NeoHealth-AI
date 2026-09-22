@@ -17,7 +17,7 @@ by the pretrained convolutional backbone.
 """
 
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -190,11 +190,13 @@ def preprocess_image(
     image: Union[Image.Image, np.ndarray, str, Path],
     size: Tuple[int, int] = IMAGE_SIZE,
     apply_imagenet_norm: bool = True,
+    augmentation: Optional[Callable[[Image.Image], Image.Image]] = None,
 ) -> torch.Tensor:
-    """Execute the locked 5-stage deterministic preprocessing pipeline.
+    """Execute the locked 5-stage preprocessing pipeline with optional training augmentation.
 
     Stages:
         1. Resize -> (224, 224)
+        [Optional training-only geometric augmentation applied to resized PIL image]
         2. White Balance -> Gray World adjustment
         3. Color Normalization -> [0.0, 1.0] continuous float representation
         4. Noise Removal -> Gaussian smoothing (3x3, sigma=0.5)
@@ -204,6 +206,7 @@ def preprocess_image(
         image: Input as PIL Image, NumPy array, or path string/Path object.
         size: Target image dimensions (default: IMAGE_SIZE = (224, 224)).
         apply_imagenet_norm: If True, applies ImageNet mean/std standardization in Stage 5.
+        augmentation: Optional callable applied to resized PIL image before pixel-level stages.
 
     Returns:
         PyTorch float32 Tensor with shape [3, 224, 224].
@@ -226,6 +229,11 @@ def preprocess_image(
 
     # Stage 1: Resize
     resized_pil = resize_image(pil_img, size=size)
+
+    # Optional training-only geometric augmentation (e.g. flip, rotation)
+    if augmentation is not None:
+        resized_pil = augmentation(resized_pil)
+
     img_np = np.array(resized_pil)
 
     # Stage 2: White Balance
@@ -266,6 +274,43 @@ class DeterministicPreprocessor:
             image,
             size=self.size,
             apply_imagenet_norm=self.apply_imagenet_norm,
+            augmentation=None,
+        )
+
+
+class AugmentedTrainingPreprocessor:
+    """Callable preprocessor for model training with isolated geometric augmentations.
+
+    Applies training-only geometric augmentations (random horizontal flip,
+    mild rotation) followed by the exact locked core preprocessing stages:
+    1. Resize -> (224, 224)
+    [Training-only geometric augmentation]
+    2. White Balance -> Gray World adjustment
+    3. Color Normalization -> [0.0, 1.0] continuous float representation
+    4. Noise Removal -> Gaussian smoothing (3x3, sigma=0.5)
+    5. Tensor Preparation -> Float32 tensor [3, 224, 224] with ImageNet standardization
+    """
+
+    def __init__(
+        self,
+        size: Tuple[int, int] = IMAGE_SIZE,
+        apply_imagenet_norm: bool = True,
+        flip_prob: float = 0.5,
+        rotation_degrees: float = 10.0,
+    ) -> None:
+        self.size = size
+        self.apply_imagenet_norm = apply_imagenet_norm
+        self.geometric_augmentations = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=flip_prob),
+            transforms.RandomRotation(degrees=rotation_degrees),
+        ])
+
+    def __call__(self, image: Union[Image.Image, np.ndarray, str, Path]) -> torch.Tensor:
+        return preprocess_image(
+            image,
+            size=self.size,
+            apply_imagenet_norm=self.apply_imagenet_norm,
+            augmentation=self.geometric_augmentations,
         )
 
 
@@ -280,23 +325,13 @@ def get_inference_transforms(
 def get_training_transforms(
     size: Tuple[int, int] = IMAGE_SIZE,
     apply_imagenet_norm: bool = True,
-) -> transforms.Compose:
-    """Return training transforms with data augmentation kept strictly separate.
-
-    Applies mild, clinically sensible augmentations (horizontal flip, slight rotation)
-    followed by deterministic tensor preparation. Note that training augmentation
-    is strictly isolated from the inference pipeline.
-    """
-    augmentations = [
-        transforms.Resize(size, interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomRotation(degrees=10),
-        transforms.ToTensor(),  # converts [0, 255] PIL Image to [0.0, 1.0] float tensor
-    ]
-
-    if apply_imagenet_norm:
-        augmentations.append(
-            transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
-        )
-
-    return transforms.Compose(augmentations)
+    flip_prob: float = 0.5,
+    rotation_degrees: float = 10.0,
+) -> AugmentedTrainingPreprocessor:
+    """Return the training preprocessor pipeline incorporating core stages and isolated augmentation."""
+    return AugmentedTrainingPreprocessor(
+        size=size,
+        apply_imagenet_norm=apply_imagenet_norm,
+        flip_prob=flip_prob,
+        rotation_degrees=rotation_degrees,
+    )

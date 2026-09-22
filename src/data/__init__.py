@@ -8,6 +8,7 @@ from src.data.dataset import NeoHealthDataset
 from src.data.preprocessing import (
     IMAGENET_MEAN,
     IMAGENET_STD,
+    AugmentedTrainingPreprocessor,
     DeterministicPreprocessor,
     color_normalize,
     get_inference_transforms,
@@ -23,6 +24,7 @@ __all__ = [
     "NeoHealthDataset",
     "IMAGENET_MEAN",
     "IMAGENET_STD",
+    "AugmentedTrainingPreprocessor",
     "DeterministicPreprocessor",
     "resize_image",
     "white_balance_gray_world",

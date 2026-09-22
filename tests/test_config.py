@@ -17,7 +17,9 @@ from src.config import (
     PROCESSED_DATA_DIR,
     RAW_DATA_DIR,
     SUPPORTED_IMAGE_EXTENSIONS,
+    TRAINING_DATA_DIR,
 )
+
 
 
 class TestConfig(unittest.TestCase):
@@ -67,12 +69,18 @@ class TestConfig(unittest.TestCase):
         self.assertIsInstance(PROCESSED_DATA_DIR, Path)
         self.assertIsInstance(MODELS_DIR, Path)
         self.assertIsInstance(EXPERIMENTS_DIR, Path)
+        self.assertIsInstance(TRAINING_DATA_DIR, Path)
 
         self.assertEqual(DATA_DIR, BASE_DIR / "data")
         self.assertEqual(RAW_DATA_DIR, BASE_DIR / "data" / "raw")
         self.assertEqual(PROCESSED_DATA_DIR, BASE_DIR / "data" / "processed")
         self.assertEqual(MODELS_DIR, BASE_DIR / "models")
         self.assertEqual(EXPERIMENTS_DIR, BASE_DIR / "experiments" / "runs")
+        self.assertEqual(
+            TRAINING_DATA_DIR,
+            BASE_DIR / "neohealth-frontend" / "data" / "raw" / "training",
+        )
+
 
 
 if __name__ == "__main__":

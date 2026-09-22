@@ -29,6 +29,7 @@ from src.data.dataset import NeoHealthDataset
 from src.data.preprocessing import (
     IMAGENET_MEAN,
     IMAGENET_STD,
+    AugmentedTrainingPreprocessor,
     DeterministicPreprocessor,
     color_normalize,
     get_inference_transforms,
@@ -39,6 +40,7 @@ from src.data.preprocessing import (
     resize_image,
     white_balance_gray_world,
 )
+
 
 
 class TestPreprocessingStages(unittest.TestCase):
@@ -184,6 +186,24 @@ class TestPreprocessImagePipeline(unittest.TestCase):
         self.assertEqual(train_tensor.shape, torch.Size([3, 224, 224]))
         self.assertEqual(inf_tensor.dtype, torch.float32)
         self.assertEqual(train_tensor.dtype, torch.float32)
+        self.assertIsInstance(train_transform, AugmentedTrainingPreprocessor)
+        self.assertIsInstance(inf_transform, DeterministicPreprocessor)
+
+    def test_training_transforms_apply_core_stages(self):
+        """Verify training transforms execute the exact core 5 stages."""
+        # When geometric augmentation is identity (p=0, deg=0), training and inference
+        # share the exact same 5-stage output.
+        neutral_train_transform = get_training_transforms(flip_prob=0.0, rotation_degrees=0.0)
+        inf_transform = get_inference_transforms()
+
+        img = Image.new("RGB", (300, 200), color=(210, 140, 70))
+        t_train = neutral_train_transform(img)
+        t_inf = inf_transform(img)
+
+        self.assertTrue(torch.allclose(t_train, t_inf, atol=1e-5))
+        self.assertEqual(t_train.shape, torch.Size([3, 224, 224]))
+        self.assertEqual(t_train.dtype, torch.float32)
+
 
 
 class TestNeoHealthDataset(unittest.TestCase):
