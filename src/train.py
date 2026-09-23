@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import CLASS_NAMES, NUM_CLASSES
+from src.config import CLASS_NAMES, NUM_CLASSES, TRAINING_DATA_DIR
 from src.data.dataset import NeoHealthDataset
 from src.data.preprocessing import (
     get_training_transforms,
@@ -18,14 +18,6 @@ from src.data.preprocessing import (
 )
 from src.models.efficientnet import create_efficientnet_b0
 
-
-DATA_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "neohealth-frontend"
-    / "data"
-    / "raw"
-    / "training"
-)
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,7 +38,7 @@ def main():
 
     # Load the complete canonical six-class dataset.
     dataset = NeoHealthDataset(
-        root_dir=DATA_DIR,
+        root_dir=TRAINING_DATA_DIR,
         transform=get_inference_transforms(),
         allowed_classes=CLASS_NAMES,
     )
@@ -85,13 +77,13 @@ def main():
     )
 
     train_dataset_full = NeoHealthDataset(
-        root_dir=DATA_DIR,
+        root_dir=TRAINING_DATA_DIR,
         transform=get_training_transforms(),
         allowed_classes=CLASS_NAMES,
     )
 
     val_dataset_full = NeoHealthDataset(
-        root_dir=DATA_DIR,
+        root_dir=TRAINING_DATA_DIR,
         transform=get_inference_transforms(),
         allowed_classes=CLASS_NAMES,
     )
@@ -125,7 +117,7 @@ def main():
 
     criterion = nn.CrossEntropyLoss()
 
-    optimizer = optim.AdamW(
+    optimizer = optim.Adam(
         model.parameters(),
         lr=LEARNING_RATE,
     )
@@ -163,6 +155,7 @@ def main():
 
         model.eval()
 
+        val_running_loss = 0.0
         val_correct = 0
         val_total = 0
 
@@ -172,17 +165,23 @@ def main():
                 targets = targets.to(device)
 
                 outputs = model(images)
+                loss = criterion(outputs, targets)
+
+                val_running_loss += loss.item() * images.size(0)
+
                 predictions = outputs.argmax(dim=1)
 
                 val_correct += (predictions == targets).sum().item()
                 val_total += targets.size(0)
 
+        val_loss = val_running_loss / val_total
         val_accuracy = val_correct / val_total
 
         print(
             f"Epoch {epoch + 1}/{EPOCHS} | "
             f"Train Loss: {train_loss:.4f} | "
             f"Train Acc: {train_accuracy:.4f} | "
+            f"Val Loss: {val_loss:.4f} | "
             f"Val Acc: {val_accuracy:.4f}"
         )
 

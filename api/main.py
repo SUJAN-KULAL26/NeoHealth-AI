@@ -9,28 +9,15 @@ import torch
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-# ---------------------------------------------------------
-# Project path
-# ---------------------------------------------------------
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-
-# ---------------------------------------------------------
-# NeoHealth AI imports
-# ---------------------------------------------------------
-
 from src.config import CLASS_NAMES
 from src.inference import load_model, predict_image
 from src.gradcam import generate_gradcam, save_gradcam_overlay
 
-
-# ---------------------------------------------------------
-# FastAPI application
-# ---------------------------------------------------------
 
 app = FastAPI(
     title="NeoHealth AI API",
@@ -38,10 +25,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
-# ---------------------------------------------------------
-# CORS
-# ---------------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,10 +38,6 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------
-# Model loading
-# ---------------------------------------------------------
-
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )
@@ -66,15 +45,10 @@ DEVICE = torch.device(
 MODEL, DEVICE = load_model(device=DEVICE)
 
 
-# ---------------------------------------------------------
-# Helper: convert image file to base64 data URL
-# ---------------------------------------------------------
-
 def image_to_data_url(image_path: Path) -> str:
     """Convert an image file into a browser-compatible data URL."""
 
     image_bytes = image_path.read_bytes()
-
     encoded = base64.b64encode(image_bytes).decode("utf-8")
 
     suffix = image_path.suffix.lower()
@@ -93,10 +67,6 @@ def image_to_data_url(image_path: Path) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
-# ---------------------------------------------------------
-# Health endpoint
-# ---------------------------------------------------------
-
 @app.get("/health")
 def health_check():
     """Check whether the NeoHealth AI backend is running."""
@@ -109,30 +79,13 @@ def health_check():
     }
 
 
-# ---------------------------------------------------------
-# Prediction endpoint
-# ---------------------------------------------------------
-
 @app.post("/predict")
 async def predict(
     file: UploadFile = File(...),
     body_site: str = Form("Face / Cheeks"),
     patient_notes: str = Form(""),
 ):
-    """
-    Run NeoHealth AI screening on an uploaded image.
-
-    Returns:
-        prediction
-        confidence
-        class probabilities
-        uncertainty status
-        Grad-CAM visualization
-    """
-
-    # -----------------------------------------------------
-    # Validate file
-    # -----------------------------------------------------
+    """Run NeoHealth AI screening on an uploaded image."""
 
     if not file.filename:
         raise HTTPException(
@@ -154,10 +107,6 @@ async def predict(
             detail="Only JPG, JPEG and PNG images are supported.",
         )
 
-    # -----------------------------------------------------
-    # Save uploaded image temporarily
-    # -----------------------------------------------------
-
     temporary_input = None
     temporary_gradcam = None
 
@@ -174,12 +123,11 @@ async def predict(
             delete=False,
             suffix=suffix,
         ) as temp_file:
-
             temp_file.write(file_bytes)
             temporary_input = Path(temp_file.name)
 
         # -------------------------------------------------
-        # Run EfficientNet prediction
+        # Run EfficientNet prediction + validation
         # -------------------------------------------------
 
         prediction_result = predict_image(
@@ -187,6 +135,31 @@ async def predict(
             model=MODEL,
             device=DEVICE,
         )
+
+        # -------------------------------------------------
+        # IMPORTANT:
+        # predict_image() can return validation failures
+        # without prediction probabilities.
+        # -------------------------------------------------
+
+        if not prediction_result.get("is_valid", True):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "status": prediction_result.get(
+                        "status",
+                        "VALIDATION_FAILED",
+                    ),
+                    "message": prediction_result.get(
+                        "message",
+                        "Image validation failed.",
+                    ),
+                    "validation_details": prediction_result.get(
+                        "validation_details",
+                        {},
+                    ),
+                },
+            )
 
         # -------------------------------------------------
         # Generate Grad-CAM
@@ -211,7 +184,6 @@ async def predict(
             delete=False,
             suffix=".png",
         ) as temp_gradcam:
-
             temporary_gradcam = Path(
                 temp_gradcam.name
             )
@@ -240,9 +212,7 @@ async def predict(
         # Convert probabilities
         # -------------------------------------------------
 
-        probabilities = prediction_result[
-            "probabilities"
-        ]
+        probabilities = prediction_result["probabilities"]
 
         probability_list = [
             {
@@ -287,10 +257,6 @@ async def predict(
         ) from exc
 
     finally:
-        # -------------------------------------------------
-        # Remove temporary files
-        # -------------------------------------------------
-
         if temporary_input is not None:
             try:
                 temporary_input.unlink(
