@@ -8,6 +8,7 @@ interface UncertainResultProps {
   onRetake: () => void;
   onNavigateHome: () => void;
   onViewHistory?: () => void;
+  onBack?: () => void;
 }
 
 export const UncertainResult: React.FC<UncertainResultProps> = ({
@@ -15,6 +16,7 @@ export const UncertainResult: React.FC<UncertainResultProps> = ({
   onRetake,
   onNavigateHome,
   onViewHistory,
+  onBack,
 }) => {
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -60,8 +62,8 @@ export const UncertainResult: React.FC<UncertainResultProps> = ({
               <History size={16} /> View Case History
             </button>
           )}
-          <button onClick={onNavigateHome} className="btn-secondary">
-            <ArrowLeft size={16} /> Return to Home
+          <button onClick={onBack || onNavigateHome} className="btn-secondary">
+            <ArrowLeft size={16} /> Back
           </button>
         </div>
       </div>

@@ -13,6 +13,7 @@ export type PageName = 'home' | 'screening' | 'processing' | 'results' | 'uncert
 
 export function useScreening() {
   const [activePage, setActivePage] = useState<PageName>('home');
+  const [previousPage, setPreviousPage] = useState<PageName>('screening');
   const [input, setInput] = useState<ScreeningInput | null>(null);
   const [status, setStatus] = useState<ScreeningStatus>('idle');
   const [result, setResult] = useState<ScreeningResult | null>(null);
@@ -21,6 +22,24 @@ export function useScreening() {
   const [processingLabel, setProcessingLabel] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
   const [history, setHistory] = useState<ScreeningHistoryItem[]>([]);
+
+  const navigateTo = useCallback((page: PageName) => {
+    setActivePage((curr) => {
+      if (curr !== page) {
+        setPreviousPage(curr);
+      }
+      return page;
+    });
+  }, []);
+
+  const goBack = useCallback(() => {
+    setActivePage((curr) => {
+      if (curr === 'results' || curr === 'uncertain') {
+        return previousPage === 'results' || previousPage === 'uncertain' ? 'screening' : previousPage;
+      }
+      return previousPage || 'home';
+    });
+  }, [previousPage]);
 
   // Load history on mount
   useEffect(() => {
@@ -133,6 +152,7 @@ export function useScreening() {
    * Loads a historic screening record directly into the results view
    */
   const loadHistoryItem = useCallback((item: ScreeningHistoryItem) => {
+    setPreviousPage('history');
     setResult(item.result);
     setInput({
       imageSrc: item.imageSrc,
@@ -171,6 +191,9 @@ export function useScreening() {
   return {
     activePage,
     setActivePage,
+    previousPage,
+    navigateTo,
+    goBack,
     input,
     status,
     result,

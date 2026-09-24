@@ -13,6 +13,7 @@ interface ResultsProps {
   onNewScreening: () => void;
   onNavigateHome: () => void;
   onViewHistory?: () => void;
+  onBack?: () => void;
 }
 
 export const Results: React.FC<ResultsProps> = ({
@@ -20,6 +21,7 @@ export const Results: React.FC<ResultsProps> = ({
   onNewScreening,
   onNavigateHome,
   onViewHistory,
+  onBack,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -67,9 +69,21 @@ export const Results: React.FC<ResultsProps> = ({
         gap: '1.25rem',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-            <button onClick={onNavigateHome} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
-              <ArrowLeft size={14} /> Back to Overview
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={onBack || onNavigateHome}
+              className="btn-secondary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '0.45rem 0.9rem',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              <ArrowLeft size={15} /> Back
             </button>
             <span style={{ color: 'var(--text-subtle)' }}>•</span>
             <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Report Date: {formatDate(result.timestamp)}</span>
@@ -126,6 +140,46 @@ export const Results: React.FC<ResultsProps> = ({
 
       {/* 4. Regulatory Medical Disclaimer */}
       <Disclaimer />
+
+      {/* 5. Navigation Bar After Output Result Screen */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        padding: '1.25rem 1.75rem',
+        background: 'rgba(13, 21, 39, 0.75)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+      }}>
+        <button
+          onClick={onBack || onNavigateHome}
+          className="btn-secondary"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.55rem',
+            padding: '0.75rem 1.4rem',
+            fontSize: '0.95rem',
+            fontWeight: 600,
+          }}
+        >
+          <ArrowLeft size={18} /> Back
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+          {onViewHistory && (
+            <button onClick={onViewHistory} className="btn-secondary" style={{ padding: '0.75rem 1.35rem', fontSize: '0.92rem' }}>
+              <History size={16} /> View Case History
+            </button>
+          )}
+          <button onClick={onNewScreening} className="btn-primary" style={{ padding: '0.75rem 1.5rem', fontSize: '0.92rem' }}>
+            <PlusCircle size={17} /> Start New Screening
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -19,6 +19,7 @@ export function App() {
     processingLabel,
     progress,
     history,
+    goBack,
     setImageInput,
     startAnalysis,
     resetScreening,
@@ -80,6 +81,7 @@ export function App() {
             onNewScreening={handleStartNewScreening}
             onNavigateHome={() => setActivePage('home')}
             onViewHistory={() => setActivePage('history')}
+            onBack={goBack}
           />
         )}
 
@@ -89,6 +91,7 @@ export function App() {
             onRetake={handleStartNewScreening}
             onNavigateHome={() => setActivePage('home')}
             onViewHistory={() => setActivePage('history')}
+            onBack={goBack}
           />
         )}
 
