@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle, RefreshCw, Sun, Focus, Stethoscope, ArrowLeft } from 'lucide-react';
+import { HelpCircle, RefreshCw, Sun, Focus, Stethoscope, ArrowLeft, History } from 'lucide-react';
 import type { ScreeningResult } from '../types/screening';
 import { Disclaimer } from '../components/Disclaimer';
 
@@ -7,12 +7,14 @@ interface UncertainResultProps {
   result: ScreeningResult;
   onRetake: () => void;
   onNavigateHome: () => void;
+  onViewHistory?: () => void;
 }
 
 export const UncertainResult: React.FC<UncertainResultProps> = ({
   result,
   onRetake,
   onNavigateHome,
+  onViewHistory,
 }) => {
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -53,6 +55,11 @@ export const UncertainResult: React.FC<UncertainResultProps> = ({
           <button onClick={onRetake} className="btn-primary" style={{ padding: '0.85rem 1.75rem' }}>
             <RefreshCw size={18} /> Retake Photo with Better Quality
           </button>
+          {onViewHistory && (
+            <button onClick={onViewHistory} className="btn-secondary" style={{ padding: '0.85rem 1.5rem' }}>
+              <History size={16} /> View Case History
+            </button>
+          )}
           <button onClick={onNavigateHome} className="btn-secondary">
             <ArrowLeft size={16} /> Return to Home
           </button>

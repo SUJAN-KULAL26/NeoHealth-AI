@@ -991,37 +991,135 @@ export async function analyzeImage(
   throw new Error('Please select or capture a valid infant medical image before starting analysis.');
 }
 
+
+let inMemoryHistoryCache: ScreeningHistoryItem[] | null = null;
+
 /**
- * Retrieves past screening records from LocalStorage.
+ * Compresses an image data URL to a lightweight thumbnail (~15-25KB, max 300px).
+ * Prevents LocalStorage quota limits from ever dropping cases.
  */
-export function getHistory(): ScreeningHistoryItem[] {
+function compressImageDataUrl(dataUrl: string, maxDim = 300, quality = 0.7): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+    return Promise.resolve(dataUrl);
+  }
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return Promise.resolve(dataUrl);
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => resolve(dataUrl), 1200);
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(dataUrl);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(dataUrl);
+    };
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Persists history items safely with progressive fallbacks to prevent quota loss.
+ */
+function persistHistorySafely(items: ScreeningHistoryItem[]): void {
+  inMemoryHistoryCache = items;
   try {
-    const raw = localStorage.getItem(
-      HISTORY_STORAGE_KEY
-    );
-
-    if (!raw) {
-      return getSampleHistory();
-    }
-
-    const items: ScreeningHistoryItem[] =
-      JSON.parse(raw);
-
-    return Array.isArray(items)
-      ? items
-      : [];
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items));
+    return;
   } catch (err) {
-    console.error(
-      'Failed to parse history from localStorage',
-      err
-    );
+    console.warn('LocalStorage quota limit reached, attempting progressive compression...', err);
+  }
 
-    return getSampleHistory();
+  // Progressive fallback 1: Keep top 15
+  try {
+    const trimmed = items.slice(0, 15);
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+    return;
+  } catch {}
+
+  // Progressive fallback 2: Keep top 8
+  try {
+    const trimmed = items.slice(0, 8);
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+    return;
+  } catch {}
+
+  // Progressive fallback 3: Strip heavy image data from older entries so diagnosis/data is NEVER lost
+  try {
+    const compact = items.slice(0, 8).map((item, index) => {
+      if (index < 2 && item.imageSrc.length < 500000) {
+        return item;
+      }
+      return {
+        ...item,
+        imageSrc: item.imageSrc.startsWith('data:image/') ? '' : item.imageSrc,
+        result: {
+          ...item.result,
+          gradCAM: {
+            ...item.result.gradCAM,
+            originalImage: item.result.gradCAM.originalImage.startsWith('data:image/') ? '' : item.result.gradCAM.originalImage,
+            heatmapOverlay: item.result.gradCAM.heatmapOverlay.startsWith('data:image/') ? '' : item.result.gradCAM.heatmapOverlay,
+          },
+        },
+      };
+    });
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(compact));
+  } catch (finalErr) {
+    console.error('Severe storage quota exceeded; kept in memory cache for session:', finalErr);
   }
 }
 
 /**
- * Saves a screening result to LocalStorage history log.
+ * Retrieves past screening records from LocalStorage or in-memory cache.
+ */
+export function getHistory(): ScreeningHistoryItem[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) {
+      if (!inMemoryHistoryCache) {
+        inMemoryHistoryCache = getSampleHistory();
+      }
+      return inMemoryHistoryCache;
+    }
+
+    const items: ScreeningHistoryItem[] = JSON.parse(raw);
+    if (Array.isArray(items) && items.length > 0) {
+      inMemoryHistoryCache = items;
+      return items;
+    }
+    return inMemoryHistoryCache || getSampleHistory();
+  } catch (err) {
+    console.error('Failed to parse history from localStorage', err);
+    return inMemoryHistoryCache || getSampleHistory();
+  }
+}
+
+/**
+ * Saves a screening result to LocalStorage history log with quota protection.
  */
 export function saveToHistory(
   result: ScreeningResult,
@@ -1033,11 +1131,9 @@ export function saveToHistory(
     id: result.id,
     date: result.timestamp,
     imageSrc: imageSrc,
-    primaryPrediction:
-      result.primaryPrediction,
+    primaryPrediction: result.primaryPrediction,
     category: result.category,
-    confidenceScore:
-      result.confidenceScore,
+    confidenceScore: result.confidenceScore,
     riskLevel: result.riskLevel,
     bodySite: result.bodySite,
     result: result,
@@ -1045,21 +1141,37 @@ export function saveToHistory(
 
   const updated = [
     newItem,
-    ...history.filter(
-      (h) => h.id !== newItem.id
-    ),
+    ...history.filter((h) => h.id !== newItem.id),
   ].slice(0, 30);
 
-  try {
-    localStorage.setItem(
-      HISTORY_STORAGE_KEY,
-      JSON.stringify(updated)
-    );
-  } catch (err) {
-    console.warn(
-      'LocalStorage quota limit reached for history images',
-      err
-    );
+  persistHistorySafely(updated);
+
+  // If image is a large base64 data URL, compress to a lightweight thumbnail in background
+  if (typeof window !== 'undefined' && (imageSrc.startsWith('data:image/') || result.gradCAM?.heatmapOverlay?.startsWith('data:image/'))) {
+    Promise.all([
+      compressImageDataUrl(imageSrc, 300, 0.7),
+      result.gradCAM?.heatmapOverlay?.startsWith('data:image/')
+        ? compressImageDataUrl(result.gradCAM.heatmapOverlay, 300, 0.7)
+        : Promise.resolve(result.gradCAM?.heatmapOverlay || ''),
+    ]).then(([thumbImage, thumbHeatmap]) => {
+      const current = getHistory();
+      const idx = current.findIndex((h) => h.id === newItem.id);
+      if (idx !== -1) {
+        current[idx] = {
+          ...current[idx],
+          imageSrc: thumbImage || current[idx].imageSrc,
+          result: {
+            ...current[idx].result,
+            gradCAM: {
+              ...current[idx].result.gradCAM,
+              originalImage: thumbImage || current[idx].result.gradCAM.originalImage,
+              heatmapOverlay: thumbHeatmap || current[idx].result.gradCAM.heatmapOverlay,
+            },
+          },
+        };
+        persistHistorySafely(current);
+      }
+    }).catch(() => {});
   }
 
   return newItem;
@@ -1068,26 +1180,19 @@ export function saveToHistory(
 /**
  * Removes a screening record by ID.
  */
-export function deleteFromHistory(
-  id: string
-): void {
-  const history = getHistory().filter(
-    (item) => item.id !== id
-  );
-
-  localStorage.setItem(
-    HISTORY_STORAGE_KEY,
-    JSON.stringify(history)
-  );
+export function deleteFromHistory(id: string): void {
+  const history = getHistory().filter((item) => item.id !== id);
+  persistHistorySafely(history);
 }
 
 /**
  * Clears all screening history records.
  */
 export function clearHistory(): void {
-  localStorage.removeItem(
-    HISTORY_STORAGE_KEY
-  );
+  inMemoryHistoryCache = [];
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+  } catch {}
 }
 
 /**

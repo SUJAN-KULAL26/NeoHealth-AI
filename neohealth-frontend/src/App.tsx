@@ -79,6 +79,7 @@ export function App() {
             result={result}
             onNewScreening={handleStartNewScreening}
             onNavigateHome={() => setActivePage('home')}
+            onViewHistory={() => setActivePage('history')}
           />
         )}
 
@@ -87,6 +88,7 @@ export function App() {
             result={result}
             onRetake={handleStartNewScreening}
             onNavigateHome={() => setActivePage('home')}
+            onViewHistory={() => setActivePage('history')}
           />
         )}
 

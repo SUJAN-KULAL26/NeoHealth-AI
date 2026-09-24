@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, ArrowLeft, Printer, Share2, Check, CheckCircle2 } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Printer, Share2, Check, CheckCircle2, History } from 'lucide-react';
 import type { ScreeningResult } from '../types/screening';
 import { ConfidenceCard } from '../components/ConfidenceCard';
 import { GradCAMViewer } from '../components/GradCAMViewer';
@@ -12,12 +12,14 @@ interface ResultsProps {
   result: ScreeningResult;
   onNewScreening: () => void;
   onNavigateHome: () => void;
+  onViewHistory?: () => void;
 }
 
 export const Results: React.FC<ResultsProps> = ({
   result,
   onNewScreening,
   onNavigateHome,
+  onViewHistory,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -65,18 +67,38 @@ export const Results: React.FC<ResultsProps> = ({
         gap: '1.25rem',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
             <button onClick={onNavigateHome} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
               <ArrowLeft size={14} /> Back to Overview
             </button>
             <span style={{ color: 'var(--text-subtle)' }}>•</span>
             <span style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Report Date: {formatDate(result.timestamp)}</span>
+            <span style={{ color: 'var(--text-subtle)' }}>•</span>
+            <span style={{
+              fontSize: '0.78rem',
+              color: '#34d399',
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              padding: '0.15rem 0.55rem',
+              borderRadius: '999px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontWeight: 600,
+            }}>
+              <CheckCircle2 size={12} color="#10b981" /> Case Saved in History
+            </span>
           </div>
           <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>Infant Diagnostic Screening Report</h2>
         </div>
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+          {onViewHistory && (
+            <button onClick={onViewHistory} className="btn-secondary" style={{ padding: '0.65rem 1.1rem', fontSize: '0.88rem' }}>
+              <History size={16} /> View Case History
+            </button>
+          )}
           <button onClick={handleShare} className="btn-secondary" style={{ padding: '0.65rem 1.1rem', fontSize: '0.88rem' }}>
             {copied ? <Check size={16} color="#10b981" /> : <Share2 size={16} />}
             {copied ? 'Link Copied!' : 'Share Case'}
