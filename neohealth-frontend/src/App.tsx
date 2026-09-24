@@ -70,6 +70,7 @@ export function App() {
             progress={progress}
             processingStep={processingStep}
             processingLabel={processingLabel}
+            onCancel={() => setActivePage('screening')}
           />
         )}
 

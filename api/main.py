@@ -134,6 +134,7 @@ async def predict(
             temporary_input,
             model=MODEL,
             device=DEVICE,
+            require_face=False,
         )
 
         # -------------------------------------------------
@@ -143,22 +144,13 @@ async def predict(
         # -------------------------------------------------
 
         if not prediction_result.get("is_valid", True):
+            error_message = prediction_result.get(
+                "message",
+                "Image validation failed. Please check the image and try again.",
+            )
             raise HTTPException(
                 status_code=422,
-                detail={
-                    "status": prediction_result.get(
-                        "status",
-                        "VALIDATION_FAILED",
-                    ),
-                    "message": prediction_result.get(
-                        "message",
-                        "Image validation failed.",
-                    ),
-                    "validation_details": prediction_result.get(
-                        "validation_details",
-                        {},
-                    ),
-                },
+                detail=error_message,
             )
 
         # -------------------------------------------------

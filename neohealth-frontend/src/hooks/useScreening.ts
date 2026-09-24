@@ -111,6 +111,7 @@ export function useScreening() {
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred during AI processing.';
       setError(msg);
       setStatus('error');
+      setActivePage('screening');
     }
   }, [input, refreshHistory]);
 

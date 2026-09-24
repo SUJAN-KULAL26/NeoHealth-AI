@@ -5,6 +5,7 @@ interface LoadingScreenProps {
   progress: number;
   currentStep: number;
   stepLabel: string;
+  onCancel?: () => void;
 }
 
 const PEDIATRIC_DL_STEPS = [
@@ -19,6 +20,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   progress,
   currentStep,
   stepLabel,
+  onCancel,
 }) => {
   return (
     <div className="glass-panel" style={{
@@ -153,6 +155,22 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
           })}
         </div>
       </div>
+
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          className="btn-secondary"
+          style={{
+            fontSize: '0.86rem',
+            padding: '0.55rem 1.25rem',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            marginTop: '0.5rem',
+          }}
+        >
+          Cancel Screening
+        </button>
+      )}
 
       <style>{`
         @keyframes spin {

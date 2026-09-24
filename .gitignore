@@ -31,5 +31,6 @@ models/*.onnx
 
 # Experiment artifacts
 experiments/runs/
+results/gradcam_tmp*.png
 
 desktop.ini

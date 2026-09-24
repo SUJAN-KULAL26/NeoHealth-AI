@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Play, Tag, FileText, CheckCircle2, Baby } from 'lucide-react';
+import { ArrowLeft, Play, FileText, CheckCircle2, Baby, Scan } from 'lucide-react';
 import type { ScreeningInput } from '../types/screening';
 
 interface ImagePreviewProps {
@@ -8,21 +8,10 @@ interface ImagePreviewProps {
   onCancel: () => void;
 }
 
-const PEDIATRIC_BODY_SITES = [
-  'Face / Forehead',
-  'Sclera / Eye Region',
-  'Cheeks & Nose (Malar)',
-  'Scalp Vertex & Crown',
-  'Neck Creases & Folds',
-  'Chest & Torso',
-  'Abdomen & Diaper Area',
-  'Forearms & Wrists',
-  'Extremities (Arms & Legs)',
-  'Full Body Scan',
-];
+const FIXED_BODY_SITE = 'Face / Cheeks';
 
 export const ImagePreview: React.FC<ImagePreviewProps> = ({ input, onConfirm, onCancel }) => {
-  const [selectedSite, setSelectedSite] = useState<string>(input.bodySite || PEDIATRIC_BODY_SITES[0]);
+  const [selectedSite] = useState<string>(FIXED_BODY_SITE);
   const [notes, setNotes] = useState<string>(input.patientNotes || '');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,33 +100,29 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ input, onConfirm, on
           </div>
         </div>
 
-        {/* Right Side: Site Selection & Clinical Notes */}
+        {/* Right Side: Scan Region (fixed) & Clinical Notes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem', justifyContent: 'space-between' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-main)' }}>
-              <Tag size={15} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle', color: 'var(--accent-cyan)' }} />
-              Anatomical Infant Body Region
+              <Scan size={15} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle', color: 'var(--accent-cyan)' }} />
+              Scan Region
             </label>
-            <select
-              value={selectedSite}
-              onChange={(e) => setSelectedSite(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.8rem 1rem',
-                background: 'rgba(13, 21, 39, 0.85)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: 'var(--radius-md)',
-                color: '#ffffff',
-                fontSize: '0.92rem',
-                outline: 'none',
-              }}
-            >
-              {PEDIATRIC_BODY_SITES.map((site) => (
-                <option key={site} value={site} style={{ background: '#0d1527' }}>
-                  {site}
-                </option>
-              ))}
-            </select>
+            <div style={{
+              width: '100%',
+              padding: '0.8rem 1rem',
+              background: 'rgba(6, 182, 212, 0.08)',
+              border: '1px solid rgba(6, 182, 212, 0.35)',
+              borderRadius: 'var(--radius-md)',
+              color: '#38bdf8',
+              fontSize: '0.92rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              <CheckCircle2 size={16} color="#10b981" />
+              Face / Cheeks — Auto-detected by MediaPipe
+            </div>
           </div>
 
           <div>

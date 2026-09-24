@@ -130,12 +130,13 @@ def predict_image(
     device: Optional[torch.device] = None,
     face_detector: Optional[Any] = None,
     model_path: Optional[Union[str, Path]] = None,
+    require_face: bool = True,
 ) -> Dict[str, object]:
     """Run six-class prediction with CV gatekeeping and confidence-aware screening.
 
     Pipeline:
         1. Format & Integrity Validation (str, Path, PIL.Image, or np.ndarray)
-        2. Face Detection & Exactly-One-Face Validation (MediaPipe Tasks FaceDetector)
+        2. Face Detection & Single-Subject Check (MediaPipe Tasks FaceDetector)
         3. Image Quality Metrics (sharpness, brightness, contrast)
         4. Skin Region Detection (YCrCb + HSV color segmentation)
         5. Locked 5-Stage Preprocessing (Resize, White Balance, Color Norm, Noise Removal, Tensor Prep)
@@ -147,6 +148,8 @@ def predict_image(
         device: PyTorch device (CPU or CUDA). If None, auto-resolved.
         face_detector: Optional initialized FaceDetector instance (for testing or injection).
         model_path: Optional path to model checkpoint if model is auto-resolved. Defaults to MODEL_PATH.
+        require_face: If True, strictly requires exactly one face. If False, runs face detection for
+                      metadata but allows general dermatological body scans (scalp, limbs, torso).
 
     Returns:
         Structured result dictionary. If any hard gate fails or model loading fails, returns
@@ -169,37 +172,60 @@ def predict_image(
         }
 
     # --------------------------------------------------------------------------
-    # GATE 2: Face Detection & Exactly-One-Face Check
+    # GATE 2: Face Detection & Subject Check
     # --------------------------------------------------------------------------
     detector = face_detector
     if detector is None:
         try:
             detector = MediaPipeFaceDetector()
         except FileNotFoundError as err:
+            if require_face:
+                return {
+                    "status": "FACE_DETECTOR_MODEL_MISSING",
+                    "is_valid": False,
+                    "validation_passed": False,
+                    "message": str(err),
+                    "validation_details": {
+                        "format": val_result.to_dict(),
+                    },
+                    "disclaimer": DISCLAIMER_TEXT,
+                }
+            detector = None
+
+    face_result = None
+    if detector is not None:
+        try:
+            face_result = detector.detect(val_result.image_np)
+        except Exception:
+            face_result = None
+
+    if require_face:
+        if face_result is None or face_result.status != FaceCountStatus.EXACTLY_ONE_FACE:
+            status_val = face_result.status.value if face_result else FaceCountStatus.NO_FACE_DETECTED.value
+            msg = face_result.message if face_result else "No face detected in the image."
             return {
-                "status": "FACE_DETECTOR_MODEL_MISSING",
+                "status": status_val,
                 "is_valid": False,
                 "validation_passed": False,
-                "message": str(err),
+                "message": msg,
                 "validation_details": {
                     "format": val_result.to_dict(),
+                    "face_detection": face_result.to_dict() if face_result else {},
                 },
                 "disclaimer": DISCLAIMER_TEXT,
             }
 
-    face_result = detector.detect(val_result.image_np)
-    if face_result.status != FaceCountStatus.EXACTLY_ONE_FACE:
-        return {
-            "status": face_result.status.value,
-            "is_valid": False,
-            "validation_passed": False,
-            "message": face_result.message,
-            "validation_details": {
-                "format": val_result.to_dict(),
-                "face_detection": face_result.to_dict(),
-            },
-            "disclaimer": DISCLAIMER_TEXT,
+    face_dict = (
+        face_result.to_dict()
+        if face_result is not None
+        else {
+            "status": "NOT_REQUIRED",
+            "is_valid": True,
+            "face_count": 0,
+            "boxes": [],
+            "message": "Face check bypassed for dermatological body scan.",
         }
+    )
 
     # --------------------------------------------------------------------------
     # GATE 3: Image Quality Metrics (Reported; unassessed without clinical thresholds)
@@ -218,7 +244,7 @@ def predict_image(
             "message": skin_result.message,
             "validation_details": {
                 "format": val_result.to_dict(),
-                "face_detection": face_result.to_dict(),
+                "face_detection": face_dict,
                 "quality": quality_result.to_dict(),
                 "skin_detection": skin_result.to_dict(),
             },
@@ -241,7 +267,7 @@ def predict_image(
                 "message": str(err),
                 "validation_details": {
                     "format": val_result.to_dict(),
-                    "face_detection": face_result.to_dict(),
+                    "face_detection": face_dict,
                     "quality": quality_result.to_dict(),
                     "skin_detection": skin_result.to_dict(),
                 },
@@ -255,7 +281,7 @@ def predict_image(
                 "message": str(err),
                 "validation_details": {
                     "format": val_result.to_dict(),
-                    "face_detection": face_result.to_dict(),
+                    "face_detection": face_dict,
                     "quality": quality_result.to_dict(),
                     "skin_detection": skin_result.to_dict(),
                 },
@@ -308,7 +334,7 @@ def predict_image(
         "probabilities": probability_dict,
         "validation_details": {
             "format": val_result.to_dict(),
-            "face_detection": face_result.to_dict(),
+            "face_detection": face_dict,
             "quality": quality_result.to_dict(),
             "skin_detection": skin_result.to_dict(),
         },
